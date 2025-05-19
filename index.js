@@ -5,7 +5,7 @@ const app = express();
 app.use(express.json());
 
 // Route handler for /merge-audio
-const mergeRoute = require("./merge-ai-radio");
+const merge = require("./merge-full-show");
 app.use("/merge-audio", mergeRoute);
 
 // Start the server
