@@ -1,10 +1,152 @@
-// Pseudocode sketch — full version below
-1. Get list of chapter audio files from Cloudinary (sorted by filename or timestamp)
-2. Download them locally
-3. Download the swoosh audio file
-4. Build a concat list alternating chapter + swoosh (except last)
-5. Run FFmpeg to merge them into a final show
-6. Use ffprobe to get time durations and generate chapter markers
-7. Save chapter timecodes to JSON or TXT
-8. Upload final MP3 + timecodes file to Cloudinary
-9. Optionally send metadata to Airtable
+const express = require("express");
+const axios = require("axios");
+const fs = require("fs");
+const { v4: uuidv4 } = require("uuid");
+const cloudinary = require("cloudinary").v2;
+const { exec } = require("child_process");
+const path = require("path");
+const router = express.Router();
+const config = require("./settings.json");
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Helper: Download file
+const downloadFile = async (url, outputPath) => {
+  const writer = fs.createWriteStream(outputPath);
+  const response = await axios({ url, method: "GET", responseType: "stream" });
+  response.data.pipe(writer);
+  return new Promise((resolve, reject) => {
+    writer.on("finish", resolve);
+    writer.on("error", reject);
+  });
+};
+
+// Helper: Get duration of file
+const getAudioDuration = (filePath) => {
+  return new Promise((resolve, reject) => {
+    exec(
+      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`,
+      (err, stdout) => {
+        if (err) return reject(err);
+        resolve(parseFloat(stdout));
+      }
+    );
+  });
+};
+
+router.post("/merge-full-show", async (req, res) => {
+  try {
+    const { programSlug, chapterFolder, swooshUrl } = req.body;
+
+    if (!programSlug || !chapterFolder || !swooshUrl) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // STEP 1: Get all chapter files from Cloudinary
+    const { resources } = await cloudinary.search
+      .expression(`folder=${chapterFolder}`)
+      .sort_by("public_id", "asc")
+      .max_results(100)
+      .execute();
+
+    const audioFiles = resources
+      .filter((r) => r.resource_type === "video" || r.format === "mp3")
+      .map((r) => ({
+        url: r.secure_url,
+        name: path.basename(r.public_id),
+      }));
+
+    if (audioFiles.length === 0) {
+      return res.status(404).json({ error: "No chapters found." });
+    }
+
+    // STEP 2: Download all audio files and swoosh
+    const tempFolder = path.join(__dirname, "temp", uuidv4());
+    fs.mkdirSync(tempFolder, { recursive: true });
+
+    const swooshPath = path.join(tempFolder, "swoosh.mp3");
+    await downloadFile(swooshUrl, swooshPath);
+
+    const localFiles = [];
+    for (let i = 0; i < audioFiles.length; i++) {
+      const localPath = path.join(tempFolder, `chapter${i + 1}.mp3`);
+      await downloadFile(audioFiles[i].url, localPath);
+      localFiles.push({ path: localPath, name: audioFiles[i].name });
+    }
+
+    // STEP 3: Build concat list and track chapters
+    const concatListPath = path.join(tempFolder, "concat.txt");
+    const chapterMarkers = [];
+    let cumulativeTime = 0;
+
+    const concatLines = [];
+
+    for (let i = 0; i < localFiles.length; i++) {
+      concatLines.push(`file '${localFiles[i].path}'`);
+      const duration = await getAudioDuration(localFiles[i].path);
+      chapterMarkers.push({
+        chapter: `Chapter ${i + 1}`,
+        file: localFiles[i].name,
+        startTime: cumulativeTime,
+      });
+      cumulativeTime += duration;
+
+      if (i < localFiles.length - 1) {
+        concatLines.push(`file '${swooshPath}'`);
+        const swooshDur = await getAudioDuration(swooshPath);
+        cumulativeTime += swooshDur;
+      }
+    }
+
+    fs.writeFileSync(concatListPath, concatLines.join("\n"));
+
+    // STEP 4: Merge with FFmpeg
+    const outputPath = path.join(tempFolder, "full-show.mp3");
+    await new Promise((resolve, reject) => {
+      exec(
+        `ffmpeg -f concat -safe 0 -i "${concatListPath}" -c copy "${outputPath}"`,
+        (err) => {
+          if (err) return reject(err);
+          resolve();
+        }
+      );
+    });
+
+    // STEP 5: Upload full audio and chapters JSON
+    const cloudinaryFolder = `Programs/${programSlug}/FullShow`;
+    const publicId = `${cloudinaryFolder}/full-show`;
+
+    const upload = await cloudinary.uploader.upload(outputPath, {
+      resource_type: "video",
+      public_id: publicId,
+      overwrite: true,
+    });
+
+    const chapterJsonPath = path.join(tempFolder, "chapters.json");
+    fs.writeFileSync(chapterJsonPath, JSON.stringify(chapterMarkers, null, 2));
+
+    await cloudinary.uploader.upload(chapterJsonPath, {
+      resource_type: "raw",
+      public_id: `${cloudinaryFolder}/chapters`,
+      overwrite: true,
+    });
+
+    // Clean up
+    fs.rmSync(tempFolder, { recursive: true, force: true });
+
+    res.json({
+      message: "Full show created!",
+      audioUrl: upload.secure_url,
+      chapters: chapterMarkers,
+    });
+  } catch (err) {
+    console.error("[MERGE ERROR]", err);
+    res.status(500).json({ error: err.message || "Internal Server Error" });
+  }
+});
+
+module.exports = router;
