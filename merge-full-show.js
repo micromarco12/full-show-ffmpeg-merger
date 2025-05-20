@@ -39,6 +39,8 @@ const getAudioDuration = (filePath) => {
 };
 
 router.post("/merge-full-show", async (req, res) => {
+  console.log("📦 [DEBUG] Incoming merge-full-show request:", req.body);
+
   try {
     const { programSlug, chapterFolder, swooshUrl } = req.body;
 
@@ -53,6 +55,8 @@ router.post("/merge-full-show", async (req, res) => {
       .max_results(100)
       .execute();
 
+    console.log("📦 [DEBUG] Resources found:", resources.length);
+
     const audioFiles = resources
       .filter((r) => r.resource_type === "video" || r.format === "mp3")
       .map((r) => ({
@@ -61,6 +65,7 @@ router.post("/merge-full-show", async (req, res) => {
       }));
 
     if (audioFiles.length === 0) {
+      console.log("⚠️ [DEBUG] No valid MP3 files found in folder.");
       return res.status(404).json({ error: "No chapters found." });
     }
 
@@ -86,20 +91,22 @@ router.post("/merge-full-show", async (req, res) => {
     const concatLines = [];
 
     for (let i = 0; i < localFiles.length; i++) {
-      concatLines.push(`file '${localFiles[i].path}'`);
-      const duration = await getAudioDuration(localFiles[i].path);
+      if (i > 0) {
+        concatLines.push(`file '${swooshPath}'`);
+        const swooshDur = await getAudioDuration(swooshPath);
+        cumulativeTime += swooshDur;
+      }
+
+      // Chapter marker should start at the swoosh (or 0 for first)
       chapterMarkers.push({
         chapter: `Chapter ${i + 1}`,
         file: localFiles[i].name,
         startTime: cumulativeTime,
       });
-      cumulativeTime += duration;
 
-      if (i < localFiles.length - 1) {
-        concatLines.push(`file '${swooshPath}'`);
-        const swooshDur = await getAudioDuration(swooshPath);
-        cumulativeTime += swooshDur;
-      }
+      concatLines.push(`file '${localFiles[i].path}'`);
+      const duration = await getAudioDuration(localFiles[i].path);
+      cumulativeTime += duration;
     }
 
     fs.writeFileSync(concatListPath, concatLines.join("\n"));
@@ -137,6 +144,8 @@ router.post("/merge-full-show", async (req, res) => {
 
     // Clean up
     fs.rmSync(tempFolder, { recursive: true, force: true });
+
+    console.log("✅ [DEBUG] Merge complete. File uploaded to:", upload.secure_url);
 
     res.json({
       message: "Full show created!",
