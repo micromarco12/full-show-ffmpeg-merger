@@ -4,10 +4,15 @@ const mergeRoute = require("./merge-full-show");
 
 app.use(express.json());
 
-// This will handle requests to /merge-audio/merge-full-show
+// ✅ Route: /merge-audio/merge-full-show
 app.use("/merge-audio", mergeRoute);
+
+// Optional ping route to confirm Render is live
+app.get("/ping", (req, res) => {
+  res.send("✅ Server is alive!");
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
