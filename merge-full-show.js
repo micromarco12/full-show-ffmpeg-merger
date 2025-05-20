@@ -97,7 +97,6 @@ router.post("/merge-full-show", async (req, res) => {
         cumulativeTime += swooshDur;
       }
 
-      // Chapter marker should start at the swoosh (or 0 for first)
       chapterMarkers.push({
         chapter: `Chapter ${i + 1}`,
         file: localFiles[i].name,
@@ -123,28 +122,27 @@ router.post("/merge-full-show", async (req, res) => {
       );
     });
 
-    // STEP 5: Upload full audio and chapters JSON
-const cloudinaryFolder = `${programSlug}/Full-Show`;
-const publicId = `${cloudinaryFolder}/full-show`; // no .mp3 here
+    // STEP 5: Upload full audio and chapters JSON to correct folders
+    const fullShowFolder = `${programSlug}/Full-Show`;
 
-const upload = await cloudinary.uploader.upload(outputPath, {
-  resource_type: "video",
-  folder: `${programSlug}/Full-Show`,
-  public_id: "full-show",
-  format: "mp3",
-  overwrite: true,
-});
+    const upload = await cloudinary.uploader.upload(outputPath, {
+      resource_type: "video",
+      folder: fullShowFolder,
+      public_id: "full-show",
+      format: "mp3",
+      overwrite: true,
+    });
 
-const chapterJsonPath = path.join(tempFolder, "chapters.json");
-fs.writeFileSync(chapterJsonPath, JSON.stringify(chapterMarkers, null, 2));
+    const chapterJsonPath = path.join(tempFolder, "chapters.json");
+    fs.writeFileSync(chapterJsonPath, JSON.stringify(chapterMarkers, null, 2));
 
-await cloudinary.uploader.upload(chapterJsonPath, {
-  resource_type: "raw",
-  folder: `${programSlug}/Full-Show`,  // ✅ Explicit folder
-  public_id: "chapters",               // ✅ Just the filename
-  format: "json",                      // ✅ Optional but helps with MIME type
-  overwrite: true
-});
+    await cloudinary.uploader.upload(chapterJsonPath, {
+      resource_type: "raw",
+      folder: fullShowFolder,
+      public_id: "chapters",
+      format: "json",
+      overwrite: true,
+    });
 
     // Clean up
     fs.rmSync(tempFolder, { recursive: true, force: true });
