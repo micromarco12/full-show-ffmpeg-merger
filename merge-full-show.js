@@ -122,26 +122,26 @@ router.post("/merge-full-show", async (req, res) => {
       );
     });
 
-    // STEP 5: Upload full audio and chapters JSON to correct folders
+    // STEP 5: Upload full audio and chapters JSON to Cloudinary as raw
     const fullShowFolder = `${programSlug}/Full-Show`;
 
     const upload = await cloudinary.uploader.upload(outputPath, {
-      resource_type: "video",
+      resource_type: "raw", // 👈 KEY CHANGE
       folder: fullShowFolder,
       public_id: "full-show",
       format: "mp3",
-      overwrite: true,
+      overwrite: true
     });
 
     const chapterJsonPath = path.join(tempFolder, "chapters.json");
     fs.writeFileSync(chapterJsonPath, JSON.stringify(chapterMarkers, null, 2));
 
     await cloudinary.uploader.upload(chapterJsonPath, {
-      resource_type: "raw",
+      resource_type: "raw", // 👈 KEY CHANGE
       folder: fullShowFolder,
       public_id: "chapters",
       format: "json",
-      overwrite: true,
+      overwrite: true
     });
 
     // Clean up
@@ -152,7 +152,7 @@ router.post("/merge-full-show", async (req, res) => {
     res.json({
       message: "Full show created!",
       audioUrl: upload.secure_url,
-      chapters: chapterMarkers,
+      chapters: chapterMarkers
     });
   } catch (err) {
     console.error("[MERGE ERROR]", err);
