@@ -124,14 +124,15 @@ router.post("/merge-full-show", async (req, res) => {
     });
 
     // STEP 5: Upload full audio and chapters JSON
-    const cloudinaryFolder = `${programSlug}/Full-Show`;
-    const publicId = `${cloudinaryFolder}/full-show`;
+const cloudinaryFolder = `${programSlug}/Full-Show`;
+const publicId = `${cloudinaryFolder}/full-show`; // no .mp3 here
 
-    const upload = await cloudinary.uploader.upload(outputPath, {
-      resource_type: "video",
-      public_id: publicId,
-      overwrite: true,
-    });
+const upload = await cloudinary.uploader.upload(outputPath, {
+  resource_type: "video",
+  public_id: publicId,
+  format: "mp3",
+  overwrite: true,
+});
 
     const chapterJsonPath = path.join(tempFolder, "chapters.json");
     fs.writeFileSync(chapterJsonPath, JSON.stringify(chapterMarkers, null, 2));
