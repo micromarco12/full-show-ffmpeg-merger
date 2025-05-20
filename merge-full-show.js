@@ -129,7 +129,8 @@ const publicId = `${cloudinaryFolder}/full-show`; // no .mp3 here
 
 const upload = await cloudinary.uploader.upload(outputPath, {
   resource_type: "video",
-  public_id: publicId,
+  folder: `${programSlug}/Full-Show`,
+  public_id: "full-show",
   format: "mp3",
   overwrite: true,
 });
