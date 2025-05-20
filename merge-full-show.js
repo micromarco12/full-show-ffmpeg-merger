@@ -14,7 +14,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Helper: Download file
 const downloadFile = async (url, outputPath) => {
   const writer = fs.createWriteStream(outputPath);
   const response = await axios({ url, method: "GET", responseType: "stream" });
@@ -25,7 +24,6 @@ const downloadFile = async (url, outputPath) => {
   });
 };
 
-// Helper: Get duration of file
 const getAudioDuration = (filePath) => {
   return new Promise((resolve, reject) => {
     exec(
@@ -48,7 +46,6 @@ router.post("/merge-full-show", async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // STEP 1: Get all chapter files from Cloudinary
     const { resources } = await cloudinary.search
       .expression(`folder=${chapterFolder}`)
       .sort_by("public_id", "asc")
@@ -69,7 +66,6 @@ router.post("/merge-full-show", async (req, res) => {
       return res.status(404).json({ error: "No chapters found." });
     }
 
-    // STEP 2: Download all audio files and swoosh
     const tempFolder = path.join(__dirname, "temp", uuidv4());
     fs.mkdirSync(tempFolder, { recursive: true });
 
@@ -83,7 +79,6 @@ router.post("/merge-full-show", async (req, res) => {
       localFiles.push({ path: localPath, name: audioFiles[i].name });
     }
 
-    // STEP 3: Build concat list and track chapters
     const concatListPath = path.join(tempFolder, "concat.txt");
     const chapterMarkers = [];
     let cumulativeTime = 0;
@@ -110,11 +105,10 @@ router.post("/merge-full-show", async (req, res) => {
 
     fs.writeFileSync(concatListPath, concatLines.join("\n"));
 
-    // STEP 4: Merge with FFmpeg
     const outputPath = path.join(tempFolder, "full-show.mp3");
     await new Promise((resolve, reject) => {
       exec(
-        `ffmpeg -f concat -safe 0 -i "${concatListPath}" -c copy "${outputPath}"`,
+        `ffmpeg -f concat -safe 0 -i "${concatListPath}" -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "${outputPath}"`,
         (err) => {
           if (err) return reject(err);
           resolve();
@@ -122,11 +116,10 @@ router.post("/merge-full-show", async (req, res) => {
       );
     });
 
-    // STEP 5: Upload full audio and chapters JSON to Cloudinary as raw
     const fullShowFolder = `${programSlug}/Full-Show`;
 
     const upload = await cloudinary.uploader.upload(outputPath, {
-      resource_type: "raw", // 👈 KEY CHANGE
+      resource_type: "raw",
       folder: fullShowFolder,
       public_id: "full-show",
       format: "mp3",
@@ -137,14 +130,13 @@ router.post("/merge-full-show", async (req, res) => {
     fs.writeFileSync(chapterJsonPath, JSON.stringify(chapterMarkers, null, 2));
 
     await cloudinary.uploader.upload(chapterJsonPath, {
-      resource_type: "raw", // 👈 KEY CHANGE
+      resource_type: "raw",
       folder: fullShowFolder,
       public_id: "chapters",
       format: "json",
       overwrite: true
     });
 
-    // Clean up
     fs.rmSync(tempFolder, { recursive: true, force: true });
 
     console.log("✅ [DEBUG] Merge complete. File uploaded to:", upload.secure_url);
