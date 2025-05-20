@@ -135,14 +135,16 @@ const upload = await cloudinary.uploader.upload(outputPath, {
   overwrite: true,
 });
 
-    const chapterJsonPath = path.join(tempFolder, "chapters.json");
-    fs.writeFileSync(chapterJsonPath, JSON.stringify(chapterMarkers, null, 2));
+const chapterJsonPath = path.join(tempFolder, "chapters.json");
+fs.writeFileSync(chapterJsonPath, JSON.stringify(chapterMarkers, null, 2));
 
-    await cloudinary.uploader.upload(chapterJsonPath, {
-      resource_type: "raw",
-      public_id: `${cloudinaryFolder}/chapters`,
-      overwrite: true,
-    });
+await cloudinary.uploader.upload(chapterJsonPath, {
+  resource_type: "raw",
+  folder: `${programSlug}/Full-Show`,  // ✅ Explicit folder
+  public_id: "chapters",               // ✅ Just the filename
+  format: "json",                      // ✅ Optional but helps with MIME type
+  overwrite: true
+});
 
     // Clean up
     fs.rmSync(tempFolder, { recursive: true, force: true });
