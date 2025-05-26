@@ -128,7 +128,7 @@ router.post("/merge-full-show", async (req, res) => {
     console.log("📄 File name (public_id):", fileName);
 
     const upload = await cloudinary.uploader.upload(outputPath, {
-      resource_type: "raw",
+      resource_type: "video",
       folder: cloudFolder,
       public_id: fileName,
       format: "mp3",
