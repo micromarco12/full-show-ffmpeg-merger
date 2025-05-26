@@ -123,6 +123,8 @@ router.post("/merge-full-show", async (req, res) => {
       folder: fullShowFolder,
       public_id: "full-show",
       format: "mp3",
+      use_filename: false,
+      unique_filename: false,
       overwrite: true
     });
 
@@ -134,6 +136,8 @@ router.post("/merge-full-show", async (req, res) => {
       folder: fullShowFolder,
       public_id: "chapters",
       format: "json",
+      use_filename: false,
+      unique_filename: false,
       overwrite: true
     });
 
