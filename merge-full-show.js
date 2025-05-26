@@ -116,30 +116,32 @@ router.post("/merge-full-show", async (req, res) => {
       );
     });
 
-    const fullShowFolder = `${programSlug}/Full-Show`;
+const publicId = `${programSlug}/Full-Show/full-show`;
 
-    const upload = await cloudinary.uploader.upload(outputPath, {
-      resource_type: "raw",
-      folder: fullShowFolder,
-      public_id: "full-show",
-      format: "mp3",
-      use_filename: false,
-      unique_filename: false,
-      overwrite: true
-    });
+console.log("🧪 Uploading to public_id:", publicId);
+
+const upload = await cloudinary.uploader.upload(outputPath, {
+  resource_type: "raw",
+  public_id: publicId,
+  format: "mp3",
+  use_filename: false,
+  unique_filename: false,
+  overwrite: true
+});
 
     const chapterJsonPath = path.join(tempFolder, "chapters.json");
     fs.writeFileSync(chapterJsonPath, JSON.stringify(chapterMarkers, null, 2));
 
-    await cloudinary.uploader.upload(chapterJsonPath, {
-      resource_type: "raw",
-      folder: fullShowFolder,
-      public_id: "chapters",
-      format: "json",
-      use_filename: false,
-      unique_filename: false,
-      overwrite: true
-    });
+const jsonPublicId = `${programSlug}/Full-Show/chapters`;
+
+await cloudinary.uploader.upload(chapterJsonPath, {
+  resource_type: "raw",
+  public_id: jsonPublicId,
+  format: "json",
+  use_filename: false,
+  unique_filename: false,
+  overwrite: true
+});
 
     fs.rmSync(tempFolder, { recursive: true, force: true });
 
