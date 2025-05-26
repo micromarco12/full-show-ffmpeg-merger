@@ -115,9 +115,14 @@ router.post("/merge-full-show", async (req, res) => {
       );
     });
 
-    // 🔥 Dynamically construct public_id using incoming programSlug (no hardcoding)
-    const publicId = `${programSlug}/Full-Show/full-show-${Date.now()}`;
-    console.log("🧪 Uploading full show to public_id:", publicId);
+    // 🔒 Make folder safe for Cloudinary
+    const safeSlug = programSlug
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9\-\/]/g, "");
+
+    const publicId = `${safeSlug}/full-show/full-show-${Date.now()}`;
+    console.log("🧪 Uploading audio to:", publicId);
 
     const upload = await cloudinary.uploader.upload(outputPath, {
       resource_type: "raw",
@@ -125,14 +130,14 @@ router.post("/merge-full-show", async (req, res) => {
       format: "mp3",
       use_filename: false,
       unique_filename: false,
-      overwrite: true
+      overwrite: true,
     });
 
     const chapterJsonPath = path.join(tempFolder, "chapters.json");
     fs.writeFileSync(chapterJsonPath, JSON.stringify(chapterMarkers, null, 2));
 
-    const jsonPublicId = `${programSlug}/Full-Show/chapters-${Date.now()}`;
-    console.log("🧪 Uploading chapters to public_id:", jsonPublicId);
+    const jsonPublicId = `${safeSlug}/full-show/chapters-${Date.now()}`;
+    console.log("🧪 Uploading JSON to:", jsonPublicId);
 
     await cloudinary.uploader.upload(chapterJsonPath, {
       resource_type: "raw",
@@ -140,7 +145,7 @@ router.post("/merge-full-show", async (req, res) => {
       format: "json",
       use_filename: false,
       unique_filename: false,
-      overwrite: true
+      overwrite: true,
     });
 
     fs.rmSync(tempFolder, { recursive: true, force: true });
@@ -150,7 +155,7 @@ router.post("/merge-full-show", async (req, res) => {
     res.json({
       message: "Full show created!",
       audioUrl: upload.secure_url,
-      chapters: chapterMarkers
+      chapters: chapterMarkers,
     });
   } catch (err) {
     console.error("[MERGE ERROR]", err);
