@@ -121,7 +121,9 @@ router.post("/merge-full-show", async (req, res) => {
       .replace(/[^a-z0-9\-\/]/g, "");
 
     const cloudFolder = `${safeSlug}/full-show`;
-    const fileName = `full-show-${Date.now()}`;
+    const baseFolderName = safeSlug.split("/").pop();
+    const fileName = `full-show-${baseFolderName}`;
+
     console.log("📂 Cloudinary folder:", cloudFolder);
     console.log("📄 File name (public_id):", fileName);
 
@@ -138,7 +140,7 @@ router.post("/merge-full-show", async (req, res) => {
     const chapterJsonPath = path.join(tempFolder, "chapters.json");
     fs.writeFileSync(chapterJsonPath, JSON.stringify(chapterMarkers, null, 2));
 
-    const jsonName = `chapters-${Date.now()}`;
+    const jsonName = `chapters-${baseFolderName}`;
     console.log("🧪 Uploading JSON to:", `${cloudFolder}/${jsonName}`);
 
     await cloudinary.uploader.upload(chapterJsonPath, {
