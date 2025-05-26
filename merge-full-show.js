@@ -37,7 +37,7 @@ const getAudioDuration = (filePath) => {
 };
 
 router.post("/merge-full-show", async (req, res) => {
-  console.log("\ud83d\udce6 [DEBUG] Incoming merge-full-show request:", req.body);
+  console.log("📦 [DEBUG] Incoming merge-full-show request:", req.body);
 
   try {
     const { programSlug, chapterFolder, swooshUrl } = req.body;
@@ -52,7 +52,7 @@ router.post("/merge-full-show", async (req, res) => {
       .max_results(100)
       .execute();
 
-    console.log("\ud83d\udce6 [DEBUG] Resources found:", resources.length);
+    console.log("📦 [DEBUG] Resources found:", resources.length);
 
     const audioFiles = resources
       .filter((r) => r.resource_type === "video" || r.format === "mp3")
@@ -62,7 +62,7 @@ router.post("/merge-full-show", async (req, res) => {
       }));
 
     if (audioFiles.length === 0) {
-      console.log("\u26a0\ufe0f [DEBUG] No valid MP3 files found in folder.");
+      console.log("⚠️ [DEBUG] No valid MP3 files found in folder.");
       return res.status(404).json({ error: "No chapters found." });
     }
 
@@ -115,23 +115,20 @@ router.post("/merge-full-show", async (req, res) => {
       );
     });
 
-    // Debugging logs before upload
     const safeSlug = programSlug
       .toLowerCase()
       .replace(/\s+/g, "-")
       .replace(/[^a-z0-9\-\/]/g, "");
 
-    const publicId = `${safeSlug}/full-show/full-show-${Date.now()}`;
-
-    console.log("\ud83e\uddea Upload Debug Info:");
-    console.log("   programSlug:", programSlug);
-    console.log("   safeSlug:", safeSlug);
-    console.log("   public_id:", publicId);
-    console.log("   outputPath:", outputPath);
+    const cloudFolder = `${safeSlug}/full-show`;
+    const fileName = `full-show-${Date.now()}`;
+    console.log("📂 Cloudinary folder:", cloudFolder);
+    console.log("📄 File name (public_id):", fileName);
 
     const upload = await cloudinary.uploader.upload(outputPath, {
       resource_type: "raw",
-      public_id: publicId,
+      folder: cloudFolder,
+      public_id: fileName,
       format: "mp3",
       use_filename: false,
       unique_filename: false,
@@ -141,12 +138,13 @@ router.post("/merge-full-show", async (req, res) => {
     const chapterJsonPath = path.join(tempFolder, "chapters.json");
     fs.writeFileSync(chapterJsonPath, JSON.stringify(chapterMarkers, null, 2));
 
-    const jsonPublicId = `${safeSlug}/full-show/chapters-${Date.now()}`;
-    console.log("\ud83e\uddea Uploading JSON to:", jsonPublicId);
+    const jsonName = `chapters-${Date.now()}`;
+    console.log("🧪 Uploading JSON to:", `${cloudFolder}/${jsonName}`);
 
     await cloudinary.uploader.upload(chapterJsonPath, {
       resource_type: "raw",
-      public_id: jsonPublicId,
+      folder: cloudFolder,
+      public_id: jsonName,
       format: "json",
       use_filename: false,
       unique_filename: false,
@@ -155,7 +153,7 @@ router.post("/merge-full-show", async (req, res) => {
 
     fs.rmSync(tempFolder, { recursive: true, force: true });
 
-    console.log("\u2705 [DEBUG] Merge complete. File uploaded to:", upload.secure_url);
+    console.log("✅ [DEBUG] Merge complete. File uploaded to:", upload.secure_url);
 
     res.json({
       message: "Full show created!",
