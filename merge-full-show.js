@@ -82,7 +82,6 @@ router.post("/merge-full-show", async (req, res) => {
     const concatListPath = path.join(tempFolder, "concat.txt");
     const chapterMarkers = [];
     let cumulativeTime = 0;
-
     const concatLines = [];
 
     for (let i = 0; i < localFiles.length; i++) {
@@ -116,32 +115,33 @@ router.post("/merge-full-show", async (req, res) => {
       );
     });
 
-const publicId = `${programSlug}/Full-Show/full-show`;
+    // 🔥 Dynamically construct public_id using incoming programSlug (no hardcoding)
+    const publicId = `${programSlug}/Full-Show/full-show-${Date.now()}`;
+    console.log("🧪 Uploading full show to public_id:", publicId);
 
-console.log("🧪 Uploading to public_id:", publicId);
-
-const upload = await cloudinary.uploader.upload(outputPath, {
-  resource_type: "raw",
-  public_id: publicId,
-  format: "mp3",
-  use_filename: false,
-  unique_filename: false,
-  overwrite: true
-});
+    const upload = await cloudinary.uploader.upload(outputPath, {
+      resource_type: "raw",
+      public_id: publicId,
+      format: "mp3",
+      use_filename: false,
+      unique_filename: false,
+      overwrite: true
+    });
 
     const chapterJsonPath = path.join(tempFolder, "chapters.json");
     fs.writeFileSync(chapterJsonPath, JSON.stringify(chapterMarkers, null, 2));
 
-const jsonPublicId = `${programSlug}/Full-Show/chapters`;
+    const jsonPublicId = `${programSlug}/Full-Show/chapters-${Date.now()}`;
+    console.log("🧪 Uploading chapters to public_id:", jsonPublicId);
 
-await cloudinary.uploader.upload(chapterJsonPath, {
-  resource_type: "raw",
-  public_id: jsonPublicId,
-  format: "json",
-  use_filename: false,
-  unique_filename: false,
-  overwrite: true
-});
+    await cloudinary.uploader.upload(chapterJsonPath, {
+      resource_type: "raw",
+      public_id: jsonPublicId,
+      format: "json",
+      use_filename: false,
+      unique_filename: false,
+      overwrite: true
+    });
 
     fs.rmSync(tempFolder, { recursive: true, force: true });
 
